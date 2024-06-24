@@ -28,6 +28,6 @@ class Settings(BaseSettings):
     SLEEP_BETWEEN_TAP: list[int] = [15, 25]
 
     USE_PROXY_FROM_FILE: bool = False
-
+    AUTO_GENERATE_USER_AGENT_FOR_EACH_SESSION: bool =True
 
 settings = Settings()
