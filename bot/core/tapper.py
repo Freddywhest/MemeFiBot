@@ -464,89 +464,91 @@ class Tapper:
                     current_boss = profile_data['currentBoss']
                     current_boss_level = current_boss['level']
                     boss_current_health = current_boss['currentHealth']
+                    print(boss_current_health, current_boss_level+1)
+                    if current_boss_level+1 <= 12 and boss_current_health > 0:
+                        if calc_taps > 0:
+                            logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
+                                        f"Balance: <c>{balance}</c> (<g>+{calc_taps} 😊</g>) | "
+                                        f"Boss health: <e>{boss_current_health}</e>")
+                        else:
+                            logger.info(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
+                                        f"Balance: <c>{balance}</c> (<g>No coin added 😥</g>) | "
+                                        f"Boss health: <e>{boss_current_health}</e>")
+                            noBalance = True
 
-                    if calc_taps > 0:
-                        logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
-                                    f"Balance: <c>{balance}</c> (<g>+{calc_taps} 😊</g>) | "
-                                    f"Boss health: <e>{boss_current_health}</e>")
+                        if boss_current_health <= 0:
+                            logger.info(f"{self.session_name} | 👉 Setting next boss: <m>{current_boss_level+1}</m> lvl")
+
+                            status = await self.set_next_boss(http_client=http_client)
+                            if status is True:
+                                logger.success(f"{self.session_name} | ✅ Successful setting next boss: "
+                                            f"<m>{current_boss_level+1}</m>")
+
+
+                        if active_turbo is False:
+                            if (energy_boost_count > 0
+                                    and available_energy < settings.MIN_AVAILABLE_ENERGY
+                                    and settings.APPLY_DAILY_ENERGY is True):
+                                logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily energy boost")
+                                await asyncio.sleep(delay=5)
+
+                                status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.ENERGY)
+                                if status is True:
+                                    logger.success(f"{self.session_name} | 👉 Energy boost applied")
+
+                                    await asyncio.sleep(delay=1)
+
+                                continue
+
+                            if turbo_boost_count > 0 and settings.APPLY_DAILY_TURBO is True:
+                                logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily turbo boost")
+                                await asyncio.sleep(delay=5)
+
+                                status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.TURBO)
+                                if status is True:
+                                    logger.success(f"{self.session_name} | 👉 Turbo boost applied")
+
+                                    await asyncio.sleep(delay=1)
+
+                                    active_turbo = True
+                                    turbo_time = time()
+
+                                continue
+
+                            if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
+                                status = await self.upgrade_boost(http_client=http_client,
+                                                                boost_type=UpgradableBoostType.TAP)
+                                if status is True:
+                                    logger.success(f"{self.session_name} | 👉 Tap upgraded to {next_tap_level} lvl")
+
+                                    await asyncio.sleep(delay=1)
+
+
+                            if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
+                                status = await self.upgrade_boost(http_client=http_client,
+                                                                boost_type=UpgradableBoostType.ENERGY)
+                                if status is True:
+                                    logger.success(f"{self.session_name} | 👉 Energy upgraded to {next_energy_level} lvl")
+
+                                    await asyncio.sleep(delay=1)
+
+                            if settings.AUTO_UPGRADE_CHARGE is True and next_charge_level <= settings.MAX_CHARGE_LEVEL:
+                                status = await self.upgrade_boost(http_client=http_client,
+                                                                boost_type=UpgradableBoostType.CHARGE)
+                                if status is True:
+                                    logger.success(f"{self.session_name} | 👉 Charge upgraded to {next_charge_level} lvl")
+
+                                    await asyncio.sleep(delay=1)
+                                
+                            if available_energy < settings.MIN_AVAILABLE_ENERGY:
+                                logger.info(f"{self.session_name} | 👉 Minimum energy reached: {available_energy}")
+                                logger.info(f"{self.session_name} | 😴 Sleep {settings.SLEEP_BY_MIN_ENERGY}s")
+
+                                await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
+
+                                continue
                     else:
-                        logger.info(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
-                                    f"Balance: <c>{balance}</c> (<g>No coin added 😥</g>) | "
-                                    f"Boss health: <e>{boss_current_health}</e>")
-                        noBalance = True
-
-                    if boss_current_health <= 0:
-                        logger.info(f"{self.session_name} | 👉 Setting next boss: <m>{current_boss_level+1}</m> lvl")
-
-                        status = await self.set_next_boss(http_client=http_client)
-                        if status is True:
-                            logger.success(f"{self.session_name} | ✅ Successful setting next boss: "
-                                           f"<m>{current_boss_level+1}</m>")
-
-
-                    if active_turbo is False:
-                        if (energy_boost_count > 0
-                                and available_energy < settings.MIN_AVAILABLE_ENERGY
-                                and settings.APPLY_DAILY_ENERGY is True):
-                            logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily energy boost")
-                            await asyncio.sleep(delay=5)
-
-                            status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.ENERGY)
-                            if status is True:
-                                logger.success(f"{self.session_name} | 👉 Energy boost applied")
-
-                                await asyncio.sleep(delay=1)
-
-                            continue
-
-                        if turbo_boost_count > 0 and settings.APPLY_DAILY_TURBO is True:
-                            logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily turbo boost")
-                            await asyncio.sleep(delay=5)
-
-                            status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.TURBO)
-                            if status is True:
-                                logger.success(f"{self.session_name} | 👉 Turbo boost applied")
-
-                                await asyncio.sleep(delay=1)
-
-                                active_turbo = True
-                                turbo_time = time()
-
-                            continue
-
-                        if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
-                            status = await self.upgrade_boost(http_client=http_client,
-                                                              boost_type=UpgradableBoostType.TAP)
-                            if status is True:
-                                logger.success(f"{self.session_name} | 👉 Tap upgraded to {next_tap_level} lvl")
-
-                                await asyncio.sleep(delay=1)
-
-
-                        if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
-                            status = await self.upgrade_boost(http_client=http_client,
-                                                              boost_type=UpgradableBoostType.ENERGY)
-                            if status is True:
-                                logger.success(f"{self.session_name} | 👉 Energy upgraded to {next_energy_level} lvl")
-
-                                await asyncio.sleep(delay=1)
-
-                        if settings.AUTO_UPGRADE_CHARGE is True and next_charge_level <= settings.MAX_CHARGE_LEVEL:
-                            status = await self.upgrade_boost(http_client=http_client,
-                                                              boost_type=UpgradableBoostType.CHARGE)
-                            if status is True:
-                                logger.success(f"{self.session_name} | 👉 Charge upgraded to {next_charge_level} lvl")
-
-                                await asyncio.sleep(delay=1)
-                            
-                        if available_energy < settings.MIN_AVAILABLE_ENERGY:
-                            logger.info(f"{self.session_name} | 👉 Minimum energy reached: {available_energy}")
-                            logger.info(f"{self.session_name} | 😴 Sleep {settings.SLEEP_BY_MIN_ENERGY}s")
-
-                            await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
-
-                            continue
-
+                        logger.info(f"{self.session_name} | 👉 <e>Finished defeating all bosses. No bosses left to fight.</e>")
                 except InvalidSession as error:
                     raise error
 
