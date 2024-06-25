@@ -404,7 +404,7 @@ class Tapper:
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
                     bot_config = await self.get_bot_config(http_client=http_client)
                     telegramMe = await self.get_user_data(http_client=http_client)
-                    
+
                     if active_turbo:
                         taps += settings.ADD_TAPS_ON_TURBO
                         if time() - turbo_time > 10:
@@ -471,8 +471,10 @@ class Tapper:
                                     bot_config = await self.get_bot_config(http_client=http_client)
                     
                     
-
-                    if current_boss_level+1 <= 12 and boss_current_health > 0:
+                    if profile_data['currentBoss']['level'] == 11 and profile_data['currentBoss']['currentHealth'] == 0:
+                        logger.info(f"{self.session_name} | 👉 <e>Finished defeating all bosses. No bosses left to fight.</e> | "
+                                    f"| Balance: <c>{balance}</c> (<g>No coin added 😥</g>)")
+                    else:
                         if calc_taps > 0:
                             logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
                                         f"Balance: <c>{balance}</c> (<g>+{calc_taps} 😊</g>) | "
@@ -554,8 +556,6 @@ class Tapper:
                                 await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
 
                                 continue
-                    else:
-                        logger.info(f"{self.session_name} | 👉 <e>Finished defeating all bosses. No bosses left to fight.</e>")
                 except InvalidSession as error:
                     raise error
 
