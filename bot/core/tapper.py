@@ -400,41 +400,6 @@ class Tapper:
 
                         await asyncio.sleep(delay=.5)
 
-                    taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
-                    bot_config = await self.get_bot_config(http_client=http_client)
-                    telegramMe = await self.get_user_data(http_client=http_client)
-
-                    if telegramMe['isReferralInitialJoinBonusAvailable'] is True:
-                        await self.claim_referral_bonus(http_client=http_client)
-                        logger.info(f"{self.session_name} | 🔥Referral bonus was claimed")
-                    
-                    if bot_config['isPurchased'] is False and settings.AUTO_BUY_TAPBOT is True:
-                        await self.upgrade_boost(http_client=http_client, boost_type=UpgradableBoostType.TAPBOT)
-                        logger.info(f"{self.session_name} | 👉 Tapbot was purchased - 😴 Sleep 3s")
-                        await asyncio.sleep(delay=3)
-                        bot_config = await self.get_bot_config(http_client=http_client)
-
-                    if bot_config['isPurchased'] is True:
-                        if bot_config['usedAttempts'] < bot_config['totalAttempts'] and not bot_config['endsAt']:
-                            await self.start_bot(http_client=http_client)
-                            bot_config = await self.get_bot_config(http_client=http_client)
-                            logger.info(f"{self.session_name} | 👉 Tapbot is started")
-
-                        else:
-                            tapbotClaim = await self.claim_bot(http_client=http_client)
-                            if tapbotClaim['isClaimed'] == False and tapbotClaim['data']:
-                                logger.info(f"{self.session_name} | 👉 Tapbot was claimed - 😴 Sleep 5s before starting again")
-                                await asyncio.sleep(delay=3)
-                                bot_config = tapbotClaim['data']
-                                await asyncio.sleep(delay=2)
-
-                                if bot_config['usedAttempts'] < bot_config['totalAttempts']:
-                                    await self.start_bot(http_client=http_client)
-                                    logger.info(f"{self.session_name} | 👉 Tapbot is started - 😴 Sleep 5s")
-                                    await asyncio.sleep(delay=5)
-                                    bot_config = await self.get_bot_config(http_client=http_client)
-                    
-                    
                     if active_turbo:
                         taps += settings.ADD_TAPS_ON_TURBO
                         if time() - turbo_time > 10:
@@ -464,7 +429,48 @@ class Tapper:
                     current_boss = profile_data['currentBoss']
                     current_boss_level = current_boss['level']
                     boss_current_health = current_boss['currentHealth']
-                    print(boss_current_health, current_boss_level+1)
+
+                    taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
+                    bot_config = await self.get_bot_config(http_client=http_client)
+                    telegramMe = await self.get_user_data(http_client=http_client)
+
+                    if telegramMe['isReferralInitialJoinBonusAvailable'] is True:
+                        await self.claim_referral_bonus(http_client=http_client)
+                        logger.info(f"{self.session_name} | 🔥Referral bonus was claimed")
+                    
+                    if bot_config['isPurchased'] is False and settings.AUTO_BUY_TAPBOT is True:
+                        if  balance >= 200000:
+                            await self.upgrade_boost(http_client=http_client, boost_type=UpgradableBoostType.TAPBOT)
+                            logger.info(f"{self.session_name} | 👉 Tapbot was purchased - 😴 Sleep 3s")
+                            await asyncio.sleep(delay=3)
+                            bot_config = await self.get_bot_config(http_client=http_client)
+                        else:
+                            logger.info(f"{self.session_name} | 👉 Tapbot wasn't purchased due to insufficient balance - 😴 Sleep 3s")
+                            await asyncio.sleep(delay=3)
+                            bot_config = await self.get_bot_config(http_client=http_client)
+
+                    if bot_config['isPurchased'] is True:
+                        if bot_config['usedAttempts'] < bot_config['totalAttempts'] and not bot_config['endsAt']:
+                            await self.start_bot(http_client=http_client)
+                            bot_config = await self.get_bot_config(http_client=http_client)
+                            logger.info(f"{self.session_name} | 👉 Tapbot is started")
+
+                        else:
+                            tapbotClaim = await self.claim_bot(http_client=http_client)
+                            if tapbotClaim['isClaimed'] == False and tapbotClaim['data']:
+                                logger.info(f"{self.session_name} | 👉 Tapbot was claimed - 😴 Sleep 5s before starting again")
+                                await asyncio.sleep(delay=3)
+                                bot_config = tapbotClaim['data']
+                                await asyncio.sleep(delay=2)
+
+                                if bot_config['usedAttempts'] < bot_config['totalAttempts']:
+                                    await self.start_bot(http_client=http_client)
+                                    logger.info(f"{self.session_name} | 👉 Tapbot is started - 😴 Sleep 5s")
+                                    await asyncio.sleep(delay=5)
+                                    bot_config = await self.get_bot_config(http_client=http_client)
+                    
+                    
+
                     if current_boss_level+1 <= 12 and boss_current_health > 0:
                         if calc_taps > 0:
                             logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
