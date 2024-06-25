@@ -400,6 +400,11 @@ class Tapper:
 
                         await asyncio.sleep(delay=.5)
 
+
+                    taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
+                    bot_config = await self.get_bot_config(http_client=http_client)
+                    telegramMe = await self.get_user_data(http_client=http_client)
+                    
                     if active_turbo:
                         taps += settings.ADD_TAPS_ON_TURBO
                         if time() - turbo_time > 10:
@@ -429,10 +434,6 @@ class Tapper:
                     current_boss = profile_data['currentBoss']
                     current_boss_level = current_boss['level']
                     boss_current_health = current_boss['currentHealth']
-
-                    taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
-                    bot_config = await self.get_bot_config(http_client=http_client)
-                    telegramMe = await self.get_user_data(http_client=http_client)
 
                     if telegramMe['isReferralInitialJoinBonusAvailable'] is True:
                         await self.claim_referral_bonus(http_client=http_client)
