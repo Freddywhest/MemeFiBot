@@ -1,6 +1,7 @@
 import asyncio
 import json
 import random
+import sys
 from time import time
 from random import randint
 from urllib.parse import unquote
@@ -471,7 +472,7 @@ class Tapper:
                                     bot_config = await self.get_bot_config(http_client=http_client)
                     
                     
-                    if profile_data['currentBoss']['level'] == 11 and profile_data['currentBoss']['currentHealth'] == 0:
+                    if profile_data['currentBoss']['level'] == 13 and profile_data['currentBoss']['currentHealth'] == 0:
                         logger.info(f"{self.session_name} | 👉 <e>Finished defeating all bosses. No bosses left to fight.</e> | "
                                     f"| Balance: <c>{balance}</c> (<g>No coin added 😥</g>)")
                     else:
