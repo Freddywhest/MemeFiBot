@@ -14,6 +14,7 @@ from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered
 from pyrogram.raw.functions.messages import RequestWebView
 
 from bot.config import settings
+from bot.core.Bypass import CustomTLSContext
 from bot.utils import logger
 from bot.utils.graphql import Query, OperationName
 from bot.utils.boosts import FreeBoostType, UpgradableBoostType
@@ -366,10 +367,12 @@ class Tapper:
         turbo_time = 0
         active_turbo = False
         noBalance = False
-        
-        proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
+       
+        context = CustomTLSContext.create_custom_ssl_context()
+        connector = ProxyConnector().from_url(url=proxy, rdns=True, ssl=context) if proxy \
+            else aiohttp.TCPConnector(ssl=context)
 
-        async with aiohttp.ClientSession(headers=headers, connector=proxy_conn) as http_client:
+        async with aiohttp.ClientSession(headers=headers, connector=connector) as http_client:
             if proxy:
                 await self.check_proxy(http_client=http_client, proxy=proxy)
 
@@ -406,21 +409,12 @@ class Tapper:
                     bot_config = await self.get_bot_config(http_client=http_client)
                     telegramMe = await self.get_user_data(http_client=http_client)
 
-                    if active_turbo:
-                        taps += settings.ADD_TAPS_ON_TURBO
-                        if time() - turbo_time > 10:
-                            active_turbo = False
-                            turbo_time = 0
-
-                    profile_data = await self.send_taps(http_client=http_client, nonce=nonce, taps=taps)
+                    profile_data = await self.get_profile_data(http_client=http_client)
 
                     if not profile_data:
                         continue
 
                     available_energy = profile_data['currentEnergy']
-                    new_balance = profile_data['coinsAmount']
-                    calc_taps = new_balance - balance
-                    balance = new_balance
 
                     free_boosts = profile_data['freeBoosts']
                     turbo_boost_count = free_boosts['currentTurboAmount']
@@ -435,6 +429,31 @@ class Tapper:
                     current_boss = profile_data['currentBoss']
                     current_boss_level = current_boss['level']
                     boss_current_health = current_boss['currentHealth']
+                    min_energy = taps * profile_data['weaponLevel']
+                    balance = profile_data['coinsAmount']
+
+                    if min_energy >= available_energy:
+                        logger.warning(f"{self.session_name} | Not enough energy to send {taps} taps. "
+                                       f"Needed <le>{min_energy+1}</le> energy to send taps"
+                                       f" | Available: <ly>{available_energy}</ly>")
+
+                        logger.info("Sleep 50s")
+                        await asyncio.sleep(delay=50)
+
+                        profile_data = await self.get_profile_data(http_client=http_client)
+
+                        continue
+
+                    if active_turbo:
+                        taps += settings.ADD_TAPS_ON_TURBO
+                        if time() - turbo_time > 10:
+                            active_turbo = False
+                            turbo_time = 0
+
+                    profile_data = await self.send_taps(http_client=http_client, nonce=nonce, taps=taps)
+                    new_balance = profile_data['coinsAmount']
+                    calc_taps = new_balance - balance
+                    balance = new_balance
 
                     if telegramMe['isReferralInitialJoinBonusAvailable'] is True:
                         await self.claim_referral_bonus(http_client=http_client)
@@ -474,16 +493,13 @@ class Tapper:
                     
                     if profile_data['currentBoss']['level'] == 13 and profile_data['currentBoss']['currentHealth'] == 0:
                         logger.info(f"{self.session_name} | 👉 <e>Finished defeating all bosses. No bosses left to fight.</e> | "
-                                    f"| Balance: <c>{balance}</c> (<g>No coin added 😥</g>)")
+                                    f"| Balance: <c>{balance}</c>")
                     else:
                         if calc_taps > 0:
                             logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
                                         f"Balance: <c>{balance}</c> (<g>+{calc_taps} 😊</g>) | "
                                         f"Boss health: <e>{boss_current_health}</e>")
                         else:
-                            logger.info(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
-                                        f"Balance: <c>{balance}</c> (<g>No coin added 😥</g>) | "
-                                        f"Boss health: <e>{boss_current_health}</e>")
                             noBalance = True
 
                         if boss_current_health <= 0:

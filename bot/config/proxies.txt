@@ -1,5 +1,10 @@
-type://user:pass@ip:port
-type://user:pass:ip:port
-type://ip:port:user:pass
-type://ip:port@user:pass
-type://ip:port
+socks5://38.154.227.167:5868:wdaulpvg:obwazka01k94
+socks5://185.199.229.156:7492:wdaulpvg:obwazka01k94
+socks5://185.199.228.220:7300:wdaulpvg:obwazka01k94
+socks5://185.199.231.45:8382:wdaulpvg:obwazka01k94
+socks5://188.74.210.207:6286:wdaulpvg:obwazka01k94
+socks5://188.74.183.10:8279:wdaulpvg:obwazka01k94
+socks5://188.74.210.21:6100:wdaulpvg:obwazka01k94
+socks5://45.155.68.129:8133:wdaulpvg:obwazka01k94
+socks5://154.95.36.199:6893:wdaulpvg:obwazka01k94
+socks5://45.94.47.66:8110:wdaulpvg:obwazka01k94
