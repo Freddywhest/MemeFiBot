@@ -14,6 +14,7 @@
 | Starting TapBot                                                |    ✅     |
 | Claiming TapBot reward every 3 hours                           |    ✅     |
 | Claiming Daily Combo                                           |    ✅     |
+| Spinning game                                                  |    ✅     |
 | User Agent for each session                                    |    ✅     |
 | Multithreading                                                 |    ✅     |
 | Binding a proxy to a session                                   |    ✅     |
@@ -44,6 +45,7 @@
 | **USE_PROXY_FROM_FILE**                       | Whether to use proxy from the `bot/config/proxies.txt` file (True / False)             |
 | **SLEEP_BETWEEN_TAP**                         | Random delay between taps in seconds (eg 10,26)                                        |
 | **AUTO_BUY_TAPBOT**                           | Whether to purchase tapbot automatically (True / False)                                |
+| **AUTO_SPIN**                                 | Whether to spin automatically (True / False)                                           |
 | **AUTO_GENERATE_USER_AGENT_FOR_EACH_SESSION** | Whether you want to generate user agent for each session (True / False)                |
 
 ## Installation

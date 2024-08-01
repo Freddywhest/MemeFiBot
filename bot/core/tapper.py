@@ -14,7 +14,7 @@ from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered
 from pyrogram.raw.functions.messages import RequestWebView
 
 from bot.config import settings
-from bot.core.Bypass import CustomTLSContext
+from .Bypass import TLSv1_3_BYPASS
 from bot.utils import logger
 from bot.utils.graphql import Query, OperationName
 from bot.utils.boosts import FreeBoostType, UpgradableBoostType
@@ -170,7 +170,7 @@ class Tapper:
 
             response_json = await response.json()
             profile_data = response_json['data']['telegramGameGetConfig']
-
+            
             return profile_data
         except Exception as error:
             logger.error(f"{self.session_name} | ❗️Unknown error while getting Profile Data: {error}")
@@ -227,7 +227,6 @@ class Tapper:
 
             response_json = await response.json()
             bot_config = response_json['data']['telegramGameTapbotGetConfig']
-
             return bot_config
         except Exception as error:
             logger.error(f"{self.session_name} | ❗️Unknown error while getting Bot Config: {error}")
@@ -267,6 +266,25 @@ class Tapper:
         except Exception as error:
             return {"isClaimed": True, "data": None}
         
+    async def spin_game(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.Spinner,
+                'query': Query.Spinner,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+            return response_json["data"]
+        except Exception as error:
+            logger.error(f"{self.session_name} | ❗️Unknown error while Claiming Referral Bonus: {error}")
+            await asyncio.sleep(delay=3)
+
+            return False
+        
     async def claim_referral_bonus(self, http_client: aiohttp.ClientSession):
         try:
             json_data = {
@@ -280,7 +298,7 @@ class Tapper:
 
             return True
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while Claiming Referral Bonus: {error}")
+            logger.error(f"{self.session_name} | ❗️Unknown error while Spinning: {error}")
             await asyncio.sleep(delay=3)
 
             return False
@@ -356,8 +374,8 @@ class Tapper:
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
         try:
-            response = await http_client.get(url='https://httpbin.org/ip', timeout=aiohttp.ClientTimeout(5))
-            ip = (await response.json()).get('origin')
+            response = await http_client.get(url='https://api.ipify.org?format=json', timeout=aiohttp.ClientTimeout(5))
+            ip = (await response.json()).get('ip')
             logger.info(f"{self.session_name} | Proxy IP: {ip}")
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
@@ -368,7 +386,7 @@ class Tapper:
         active_turbo = False
         noBalance = False
        
-        context = CustomTLSContext.create_custom_ssl_context()
+        context = TLSv1_3_BYPASS.create_ssl_context()
         connector = ProxyConnector().from_url(url=proxy, rdns=True, ssl=context) if proxy \
             else aiohttp.TCPConnector(ssl=context)
 
@@ -431,6 +449,21 @@ class Tapper:
                     boss_current_health = current_boss['currentHealth']
                     min_energy = taps * profile_data['weaponLevel']
                     balance = profile_data['coinsAmount']
+                    spinEnergyTotal = profile_data["spinEnergyTotal"]
+                    rewardAmount = 0
+                    rewardType = ""
+
+                    if spinEnergyTotal > 0 and settings.AUTO_SPIN is True:
+                        game_result = await self.spin_game(http_client=http_client)
+                        if game_result:
+                            rewardAmount = game_result["slotMachineSpin"]["rewardAmount"]
+                            rewardType = game_result["slotMachineSpin"]["rewardType"]
+                            profile_data = await self.get_profile_data(http_client=http_client)
+                            spinEnergyTotal = profile_data["spinEnergyTotal"]
+                            balance = profile_data["coinsAmount"]
+                            logger.info(f"{self.session_name} | 🔥Reward Amount: <c>{rewardAmount}</c> | Reward Type: <m>{rewardType}</m> | Available Spin: <e>{spinEnergyTotal}</e>")
+
+                            await asyncio.sleep(delay=1)
 
                     if min_energy >= available_energy:
                         logger.warning(f"{self.session_name} | Not enough energy to send {taps} taps. "
@@ -490,89 +523,85 @@ class Tapper:
                                     await asyncio.sleep(delay=5)
                                     bot_config = await self.get_bot_config(http_client=http_client)
                     
-                    
-                    if profile_data['currentBoss']['level'] == 13 and profile_data['currentBoss']['currentHealth'] == 0:
-                        logger.info(f"{self.session_name} | 👉 <e>Finished defeating all bosses. No bosses left to fight.</e> | "
-                                    f"| Balance: <c>{balance}</c>")
+                    if calc_taps > 0:
+                        logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
+                                    f"Balance: <c>{balance}</c> (<g>+{calc_taps} 😊</g>) | "
+                                    f"Boss health: <e>{boss_current_health}</e>")
                     else:
-                        if calc_taps > 0:
-                            logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
-                                        f"Balance: <c>{balance}</c> (<g>+{calc_taps} 😊</g>) | "
-                                        f"Boss health: <e>{boss_current_health}</e>")
-                        else:
-                            noBalance = True
+                        noBalance = True
 
-                        if boss_current_health <= 0:
-                            logger.info(f"{self.session_name} | 👉 Setting next boss: <m>{current_boss_level+1}</m> lvl")
+                    if boss_current_health <= 0:
+                        logger.info(f"{self.session_name} | 👉 Setting next boss: <m>{current_boss_level+1}</m> lvl")
 
-                            status = await self.set_next_boss(http_client=http_client)
+                        status = await self.set_next_boss(http_client=http_client)
+                        if status is True:
+                            logger.success(f"{self.session_name} | ✅ Successful setting next boss: "
+                                        f"<m>{current_boss_level+1}</m>")
+
+
+                    if active_turbo is False:
+                        if (energy_boost_count > 0
+                            and available_energy < settings.MIN_AVAILABLE_ENERGY
+                            and settings.APPLY_DAILY_ENERGY is True):
+                            logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily energy boost")
+                            await asyncio.sleep(delay=5)
+
+                            status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.ENERGY)
                             if status is True:
-                                logger.success(f"{self.session_name} | ✅ Successful setting next boss: "
-                                            f"<m>{current_boss_level+1}</m>")
+                                logger.success(f"{self.session_name} | 👉 Energy boost applied")
+
+                                await asyncio.sleep(delay=1)
+
+                            continue
+
+                        if turbo_boost_count > 0 and settings.APPLY_DAILY_TURBO is True:
+                            logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily turbo boost")
+                            await asyncio.sleep(delay=5)
+
+                            status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.TURBO)
+                            if status is True:
+                                logger.success(f"{self.session_name} | 👉 Turbo boost applied")
+
+                                await asyncio.sleep(delay=1)
+
+                                active_turbo = True
+                                turbo_time = time()
+
+                            continue
+
+                        if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
+                            status = await self.upgrade_boost(http_client=http_client,
+                                                            boost_type=UpgradableBoostType.TAP)
+                            if status is True:
+                                logger.success(f"{self.session_name} | 👉 Tap upgraded to {next_tap_level} lvl")
+
+                                await asyncio.sleep(delay=1)
 
 
-                        if active_turbo is False:
-                            if (energy_boost_count > 0
-                                    and available_energy < settings.MIN_AVAILABLE_ENERGY
-                                    and settings.APPLY_DAILY_ENERGY is True):
-                                logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily energy boost")
-                                await asyncio.sleep(delay=5)
+                        if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
+                            status = await self.upgrade_boost(http_client=http_client,
+                                                            boost_type=UpgradableBoostType.ENERGY)
+                            if status is True:
+                                logger.success(f"{self.session_name} | 👉 Energy upgraded to {next_energy_level} lvl")
 
-                                status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.ENERGY)
-                                if status is True:
-                                    logger.success(f"{self.session_name} | 👉 Energy boost applied")
+                                await asyncio.sleep(delay=1)
 
-                                    await asyncio.sleep(delay=1)
+                        if settings.AUTO_UPGRADE_CHARGE is True and next_charge_level <= settings.MAX_CHARGE_LEVEL:
+                            status = await self.upgrade_boost(http_client=http_client,
+                                                            boost_type=UpgradableBoostType.CHARGE)
+                            if status is True:
+                                logger.success(f"{self.session_name} | 👉 Charge upgraded to {next_charge_level} lvl")
 
-                                continue
+                                await asyncio.sleep(delay=1)
+                            
+                        if available_energy < settings.MIN_AVAILABLE_ENERGY:
+                            logger.info(f"{self.session_name} | 👉 Minimum energy reached: {available_energy}")
+                            logger.info(f"{self.session_name} | 😴 Sleep {settings.SLEEP_BY_MIN_ENERGY}s")
 
-                            if turbo_boost_count > 0 and settings.APPLY_DAILY_TURBO is True:
-                                logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily turbo boost")
-                                await asyncio.sleep(delay=5)
+                            await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
 
-                                status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.TURBO)
-                                if status is True:
-                                    logger.success(f"{self.session_name} | 👉 Turbo boost applied")
+                            continue
 
-                                    await asyncio.sleep(delay=1)
-
-                                    active_turbo = True
-                                    turbo_time = time()
-
-                                continue
-
-                            if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
-                                status = await self.upgrade_boost(http_client=http_client,
-                                                                boost_type=UpgradableBoostType.TAP)
-                                if status is True:
-                                    logger.success(f"{self.session_name} | 👉 Tap upgraded to {next_tap_level} lvl")
-
-                                    await asyncio.sleep(delay=1)
-
-
-                            if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
-                                status = await self.upgrade_boost(http_client=http_client,
-                                                                boost_type=UpgradableBoostType.ENERGY)
-                                if status is True:
-                                    logger.success(f"{self.session_name} | 👉 Energy upgraded to {next_energy_level} lvl")
-
-                                    await asyncio.sleep(delay=1)
-
-                            if settings.AUTO_UPGRADE_CHARGE is True and next_charge_level <= settings.MAX_CHARGE_LEVEL:
-                                status = await self.upgrade_boost(http_client=http_client,
-                                                                boost_type=UpgradableBoostType.CHARGE)
-                                if status is True:
-                                    logger.success(f"{self.session_name} | 👉 Charge upgraded to {next_charge_level} lvl")
-
-                                    await asyncio.sleep(delay=1)
-                                
-                            if available_energy < settings.MIN_AVAILABLE_ENERGY:
-                                logger.info(f"{self.session_name} | 👉 Minimum energy reached: {available_energy}")
-                                logger.info(f"{self.session_name} | 😴 Sleep {settings.SLEEP_BY_MIN_ENERGY}s")
-
-                                await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
-
-                                continue
                 except InvalidSession as error:
                     raise error
 
