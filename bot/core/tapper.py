@@ -5,6 +5,7 @@ import sys
 from time import time
 from random import randint
 from urllib.parse import unquote
+import traceback
 
 import aiohttp
 from aiohttp_proxy import ProxyConnector
@@ -153,7 +154,7 @@ class Tapper:
             access_token = response_json['data']['telegramUserLogin']['access_token']
 
             return access_token
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -181,7 +182,7 @@ class Tapper:
             profile_data = response_json['data']['telegramGameGetConfig']
             
             return profile_data
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -210,7 +211,7 @@ class Tapper:
             
 
             return user_data
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -235,7 +236,7 @@ class Tapper:
             response.raise_for_status()
 
             return True
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -264,7 +265,7 @@ class Tapper:
             response_json = await response.json()
             bot_config = response_json['data']['telegramGameTapbotGetConfig']
             return bot_config
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -289,7 +290,7 @@ class Tapper:
             response.raise_for_status()
 
             return True
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -315,9 +316,25 @@ class Tapper:
             response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
             response.raise_for_status()
             response_json = await response.json()
-            data = response_json['data']["telegramGameTapbotClaim"]
-            return {"isClaimed": False, "data": data}
-        except Exception as error:
+            print(response_json)
+            if response_json is None:
+                logger.error("Response JSON is None")
+                return None
+
+            data = response_json.get('data')
+            
+            if data is None:
+                logger.error("'data' key not found or is None in the response JSON")
+                return None
+
+            tapbotClaim = data.get("telegramGameTapbotClaimCoins")
+            
+            if tapbotClaim is None:
+                logger.error("'telegramGameTapbotClaimCoins' key not found or is None in 'data'")
+                return None
+
+            return  {"isClaimed": False, "data": tapbotClaim}
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -344,7 +361,7 @@ class Tapper:
 
             response_json = await response.json()
             return response_json["data"]
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -371,7 +388,7 @@ class Tapper:
             response.raise_for_status()
 
             return True
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -400,7 +417,7 @@ class Tapper:
             response.raise_for_status()
 
             return True
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -429,7 +446,7 @@ class Tapper:
             response.raise_for_status()
 
             return True
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -469,7 +486,7 @@ class Tapper:
             response_json = await response.json()
             profile_data = response_json['data']['telegramGameProcessTapsBatch']
             return profile_data
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             if error.status == 429:
                 if 'Retry-After' in error.headers:
                     retry_after = int(error.headers['Retry-After'])
@@ -487,7 +504,7 @@ class Tapper:
             response = await http_client.get(url='https://api.ipify.org?format=json', timeout=aiohttp.ClientTimeout(5))
             ip = (await response.json()).get('ip')
             logger.info(f"{self.session_name} | Proxy IP: {ip}")
-        except Exception as error:
+        except aiohttp.ClientResponseError as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
 
     async def run(self, proxy: str | None):
@@ -612,26 +629,26 @@ class Tapper:
                             logger.info(f"{self.session_name} | 👉 Tapbot wasn't purchased due to insufficient balance - 😴 Sleep 3s")
                             await asyncio.sleep(delay=3)
                             bot_config = await self.get_bot_config(http_client=http_client)
-
                     if bot_config['isPurchased'] is True:
-                        if bot_config['usedAttempts'] < bot_config['totalAttempts'] and not bot_config['endsAt']:
+                        if bot_config['usedAttempts'] < bot_config['totalAttempts'] and bot_config['endsAt'] is None:
                             await self.start_bot(http_client=http_client)
                             bot_config = await self.get_bot_config(http_client=http_client)
                             logger.info(f"{self.session_name} | 👉 Tapbot is started")
 
                         else:
-                            tapbotClaim = await self.claim_bot(http_client=http_client)
-                            if tapbotClaim['isClaimed'] == False and tapbotClaim['data']:
-                                logger.info(f"{self.session_name} | 👉 Tapbot was claimed - 😴 Sleep 5s before starting again")
-                                await asyncio.sleep(delay=3)
-                                bot_config = tapbotClaim['data']
-                                await asyncio.sleep(delay=2)
+                            if bot_config['endsAt'] is not None:
+                                tapbotClaim = await self.claim_bot(http_client=http_client)
+                                if tapbotClaim['isClaimed'] == False and tapbotClaim['data']:
+                                    logger.info(f"{self.session_name} | 👉 Tapbot was claimed - 😴 Sleep 5s before starting again")
+                                    await asyncio.sleep(delay=3)
+                                    bot_config = tapbotClaim['data']
+                                    await asyncio.sleep(delay=2)
 
-                                if bot_config['usedAttempts'] < bot_config['totalAttempts']:
-                                    await self.start_bot(http_client=http_client)
-                                    logger.info(f"{self.session_name} | 👉 Tapbot is started - 😴 Sleep 5s")
-                                    await asyncio.sleep(delay=5)
-                                    bot_config = await self.get_bot_config(http_client=http_client)
+                                    if bot_config['usedAttempts'] < bot_config['totalAttempts']:
+                                        await self.start_bot(http_client=http_client)
+                                        logger.info(f"{self.session_name} | 👉 Tapbot is started - 😴 Sleep 5s")
+                                        await asyncio.sleep(delay=5)
+                                        bot_config = await self.get_bot_config(http_client=http_client)
                     
                     if calc_taps > 0:
                         logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
@@ -715,8 +732,18 @@ class Tapper:
                 except InvalidSession as error:
                     raise error
 
+                except aiohttp.ClientResponseError as error:
+                    if error.status == 429:
+                        logger.error(f"{self.session_name} | Too many requests. Switching proxy and retrying...")
+                        proxy = await self.get_proxy()
+                        connector = ProxyConnector().from_url(url=proxy, rdns=True, ssl=context)
+                        http_client = aiohttp.ClientSession(headers=headers, connector=connector)
+                    else:
+                        logger.error(f"{self.session_name} | Unknown error with Tapper (aiohttp): {error}")
+                        await asyncio.sleep(3)
+
                 except Exception as error:
-                    logger.error(f"{self.session_name} | ❗️Unknown error: {error}")
+                    logger.error(f"{self.session_name} | ❗️Unknown error with Tapper (unkwnown): {error} | {traceback.format_exc()}")
                     await asyncio.sleep(delay=3)
 
                 else:
