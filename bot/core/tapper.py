@@ -369,8 +369,17 @@ class Tapper:
             profile_data = response_json['data']['telegramGameProcessTapsBatch']
             return profile_data
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error when Tapping: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | Unknown error when Tapping: {error}")
+                await asyncio.sleep(10)
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
         try:
