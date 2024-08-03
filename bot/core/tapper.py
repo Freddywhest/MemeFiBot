@@ -154,8 +154,17 @@ class Tapper:
 
             return access_token
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while getting Access Token: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while getting Access Token: {error}")
+                await asyncio.sleep(delay=3)
 
     async def get_profile_data(self, http_client: aiohttp.ClientSession):
         try:
@@ -173,8 +182,17 @@ class Tapper:
             
             return profile_data
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while getting Profile Data: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while getting Profile Data: {error}")
+                await asyncio.sleep(delay=3)
 
     async def get_user_data(self, http_client: aiohttp.ClientSession):
         try:
@@ -193,8 +211,17 @@ class Tapper:
 
             return user_data
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while getting User Data: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while getting User Data: {error}")
+                await asyncio.sleep(delay=3)
 
     async def set_next_boss(self, http_client: aiohttp.ClientSession):
         try:
@@ -209,8 +236,17 @@ class Tapper:
 
             return True
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while Setting Next Boss: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while Setting Next Boss: {error}")
+                await asyncio.sleep(delay=3)
 
             return False
         
@@ -229,8 +265,17 @@ class Tapper:
             bot_config = response_json['data']['telegramGameTapbotGetConfig']
             return bot_config
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while getting Bot Config: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while getting Bot Config: {error}")
+                await asyncio.sleep(delay=3)
     
     async def start_bot(self, http_client: aiohttp.ClientSession):
         try:
@@ -245,8 +290,17 @@ class Tapper:
 
             return True
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while Starting Bot: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while Starting Bot: {error}")
+                await asyncio.sleep(delay=3)
 
             return False
     
@@ -264,7 +318,18 @@ class Tapper:
             data = response_json['data']["telegramGameTapbotClaim"]
             return {"isClaimed": False, "data": data}
         except Exception as error:
-            return {"isClaimed": True, "data": None}
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                    return {"isClaimed": True, "data": None}
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+                    return {"isClaimed": True, "data": None}
+            else:
+                return {"isClaimed": True, "data": None}
         
     async def spin_game(self, http_client: aiohttp.ClientSession):
         try:
@@ -280,8 +345,17 @@ class Tapper:
             response_json = await response.json()
             return response_json["data"]
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while Claiming Referral Bonus: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while Claiming Referral Bonus: {error}")
+                await asyncio.sleep(delay=3)
 
             return False
         
@@ -298,8 +372,17 @@ class Tapper:
 
             return True
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while Spinning: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while Spinning: {error}")
+                await asyncio.sleep(delay=3)
 
             return False
 
@@ -318,8 +401,17 @@ class Tapper:
 
             return True
         except Exception as error:
-            logger.error(f"{self.session_name} | ❗️Unknown error while Apply {boost_type} Boost: {error}")
-            await asyncio.sleep(delay=3)
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                logger.error(f"{self.session_name} | ❗️Unknown error while Apply {boost_type} Boost: {error}")
+                await asyncio.sleep(delay=3)
 
             return False
 
@@ -337,8 +429,17 @@ class Tapper:
             response.raise_for_status()
 
             return True
-        except Exception:
-            return False
+        except Exception as error:
+            if error.status == 429:
+                if 'Retry-After' in error.headers:
+                    retry_after = int(error.headers['Retry-After'])
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                else:
+                    logger.error(f"{self.session_name} | Too many requests. Sleeping for 60 seconds...")
+                    await asyncio.sleep(60)  # Wait for 60 seconds
+            else:
+                return False
 
     async def send_taps(self, http_client: aiohttp.ClientSession, nonce: str, taps: int):
         try:
