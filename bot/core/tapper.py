@@ -1,11 +1,11 @@
 import asyncio
 import json
 import random
-import sys
 from time import time
 from random import randint
 from urllib.parse import unquote
 import traceback
+from datetime import datetime
 
 import aiohttp
 from aiohttp_proxy import ProxyConnector
@@ -15,7 +15,7 @@ from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered
 from pyrogram.raw.functions.messages import RequestWebView
 
 from bot.config import settings
-from .Bypass import TLSv1_3_BYPASS
+from bot.core.Bypass import CustomTLSContext
 from bot.utils import logger
 from bot.utils.graphql import Query, OperationName
 from bot.utils.boosts import FreeBoostType, UpgradableBoostType
@@ -316,7 +316,6 @@ class Tapper:
             response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
             response.raise_for_status()
             response_json = await response.json()
-            print(response_json)
             if response_json is None:
                 logger.error("Response JSON is None")
                 return None
@@ -501,7 +500,7 @@ class Tapper:
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
         try:
-            response = await http_client.get(url='https://api.ipify.org?format=json', timeout=aiohttp.ClientTimeout(5))
+            response = await http_client.get(url='https://api.ipify.org?format=json', timeout=aiohttp.ClientTimeout(10))
             ip = (await response.json()).get('ip')
             logger.info(f"{self.session_name} | Proxy IP: {ip}")
         except aiohttp.ClientResponseError as error:
@@ -513,7 +512,7 @@ class Tapper:
         active_turbo = False
         noBalance = False
        
-        context = TLSv1_3_BYPASS.create_ssl_context()
+        context = CustomTLSContext.create_custom_ssl_context()
         connector = ProxyConnector().from_url(url=proxy, rdns=True, ssl=context) if proxy \
             else aiohttp.TCPConnector(ssl=context)
 
@@ -596,6 +595,19 @@ class Tapper:
                         logger.warning(f"{self.session_name} | Not enough energy to send {taps} taps. "
                                        f"Needed <le>{min_energy+1}</le> energy to send taps"
                                        f" | Available: <ly>{available_energy}</ly>")
+                        if (energy_boost_count > 0
+                            and settings.APPLY_DAILY_ENERGY is True):
+                            logger.info(f"{self.session_name} | 😴 Sleep 5s before activating the daily energy boost")
+                            await asyncio.sleep(delay=5)
+
+                            status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.ENERGY)
+                            if status is True:
+                                logger.success(f"{self.session_name} | 👉 Energy boost applied")
+
+                                await asyncio.sleep(delay=1)
+
+                            continue
+
 
                         logger.info("Sleep 50s")
                         await asyncio.sleep(delay=50)
@@ -637,18 +649,23 @@ class Tapper:
 
                         else:
                             if bot_config['endsAt'] is not None:
-                                tapbotClaim = await self.claim_bot(http_client=http_client)
-                                if tapbotClaim['isClaimed'] == False and tapbotClaim['data']:
-                                    logger.info(f"{self.session_name} | 👉 Tapbot was claimed - 😴 Sleep 5s before starting again")
-                                    await asyncio.sleep(delay=3)
-                                    bot_config = tapbotClaim['data']
-                                    await asyncio.sleep(delay=2)
+                                current_datetime_utc = datetime.now().astimezone()
+                                given_datetime_str = bot_config['endsAt']
+                                given_datetime = datetime.fromisoformat(given_datetime_str.replace("Z", "+00:00"))
 
-                                    if bot_config['usedAttempts'] < bot_config['totalAttempts']:
-                                        await self.start_bot(http_client=http_client)
-                                        logger.info(f"{self.session_name} | 👉 Tapbot is started - 😴 Sleep 5s")
-                                        await asyncio.sleep(delay=5)
-                                        bot_config = await self.get_bot_config(http_client=http_client)
+                                if(given_datetime <= current_datetime_utc):
+                                    tapbotClaim = await self.claim_bot(http_client=http_client)
+                                    if tapbotClaim['isClaimed'] == False and tapbotClaim['data']:
+                                        logger.info(f"{self.session_name} | 👉 Tapbot was claimed - 😴 Sleep 5s before starting again")
+                                        await asyncio.sleep(delay=3)
+                                        bot_config = tapbotClaim['data']
+                                        await asyncio.sleep(delay=2)
+
+                                        if bot_config['usedAttempts'] < bot_config['totalAttempts']:
+                                            await self.start_bot(http_client=http_client)
+                                            logger.info(f"{self.session_name} | 👉 Tapbot is started - 😴 Sleep 5s")
+                                            await asyncio.sleep(delay=5)
+                                            bot_config = await self.get_bot_config(http_client=http_client)
                     
                     if calc_taps > 0:
                         logger.success(f"{self.session_name} | ✅ Successful tapped! 🔨 | "
@@ -689,7 +706,7 @@ class Tapper:
                             if status is True:
                                 logger.success(f"{self.session_name} | 👉 Turbo boost applied")
 
-                                await asyncio.sleep(delay=1)
+                                await asyncio.sleep(delay=10)
 
                                 active_turbo = True
                                 turbo_time = time()
@@ -731,16 +748,6 @@ class Tapper:
 
                 except InvalidSession as error:
                     raise error
-
-                except aiohttp.ClientResponseError as error:
-                    if error.status == 429:
-                        logger.error(f"{self.session_name} | Too many requests. Switching proxy and retrying...")
-                        proxy = await self.get_proxy()
-                        connector = ProxyConnector().from_url(url=proxy, rdns=True, ssl=context)
-                        http_client = aiohttp.ClientSession(headers=headers, connector=connector)
-                    else:
-                        logger.error(f"{self.session_name} | Unknown error with Tapper (aiohttp): {error}")
-                        await asyncio.sleep(3)
 
                 except Exception as error:
                     logger.error(f"{self.session_name} | ❗️Unknown error with Tapper (unkwnown): {error} | {traceback.format_exc()}")
