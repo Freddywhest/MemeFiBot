@@ -1,3 +1,5 @@
+# This repository is been archive and will not have any feature update
+# Use this instead: [https://github.com/shamhi/MemeFiBot](https://github.com/shamhi/MemeFiBot)
 > 🇷🇺 README на русском доступен [здесь](README-RU.md)
 
 > [<img src="https://img.shields.io/badge/Telegram-%40Me-orange">](https://t.me/roddyfred)
